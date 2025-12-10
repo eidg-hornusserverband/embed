@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8' />
+  <link href='fullcalendar.min.css' rel='stylesheet' />
+  <link href='fullcalendar.print.min.css' rel='stylesheet' media='print' />
+  <script src="https://hgverwaltung.ch/polyfill/v2/polyfill.min.js?features=fetch"></script>
+  <script src="https://hgverwaltung.ch/static/hgutil-1.1.js"></script>
+  <script src='moment.min.js'></script>
+  <script src='jquery.min.js'></script>
+  <script src='fullcalendar.min.js'></script>
+  <script src='de-ch.js'></script>
+  <link href='bootstrap.min.css' rel='stylesheet' />
+  <script src='popper.min.js'></script>
+  <script src='bootstrap.min.js'></script>
+  <script>
+    var currentYear;
+    var club;
+    var inklSpiele = 1;
+    var defaultView = 'listMonth';
+    var yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    var show = 'month,basicWeek,basicDay,listMonth';
+    $(document).ready(function () {
+
+      club = hgutil.getParameterByName('club');
+      if (!club) {
+        club = 'test';
+      }
+      currentYear = (new Date()).getFullYear();
+
+      defaultView = hgutil.getParameterByName('defaultView');
+        if (!defaultView) {
+            defaultView = 'listMonth';
+        }
+
+      show = hgutil.getParameterByName('show');
+        if (!show) {
+            show = 'month,basicWeek,basicDay,listMonth';
+        }
+
+      all = hgutil.getParameterByName('all');
+      if (all) {
+        yesterday = new Date('1900-01-01');
+      }
+
+      fetch('https://www.hgverwaltung.ch/api/1/' + club + '/anlaesse?jahr=' + currentYear + '&inklSpiele=' + inklSpiele)
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (data) {
+          var events = createEvents(data);
+          showCalendar(events);
+        });
+
+    });
+
+    function createEvents(data) {
+      var events = [];
+      if (data) {
+        for (var i = 0; i < data.length; i++) {
+          // if defaultView = 'listMonth' then show not only the title but also the H/A and the team
+          var title = data[i].anlass;
+          if (defaultView === 'listMonth') {
+            title = data[i].anlass + ' (' + data[i].ha + ')';
+          }
+          var event = {
+            title: title,
+            start: data[i].datum.replace(' ', 'T'),
+            allDay: data[i].ganzerTag
+          };
+          if (data[i].ende) {
+            event.end = data[i].ende.replace(' ', 'T');
+          }
+
+          event.description = 'Team: <strong>' + data[i].team + '</strong>';
+          event.description += '<br>'
+          event.description += 'Ort: <strong>' + (data[i].ort ? data[i].ort : '') + '</strong>';
+          event.description += '<br>'
+          event.description += 'H/A: <strong>' + data[i].ha + '</strong>';
+          events.push(event);
+        }
+      }
+      return events;
+    }
+
+    function showCalendar(events) {
+      $('#calendar').fullCalendar({
+        validRange: {
+          start: yesterday
+        },
+        defaultView: defaultView,
+        header: {
+          left: 'prev,next today',
+          center: 'title',
+          right: show
+        },
+        viewRender: function (view, element) {
+          if (currentYear !== view.intervalStart.year()) {
+
+            fetch('https://www.hgverwaltung.ch/api/1/' + club + '/anlaesse/?jahr=' + view.intervalStart.year() + '&inklSpiele=' + inklSpiele)
+              .then(function (response) {
+                return response.json();
+              })
+              .then(function (data) {
+                var events = createEvents(data);
+                view.calendar.removeEventSources();
+                view.calendar.addEventSource(events);
+              });
+
+            currentYear = view.intervalStart.year();
+          }
+        },
+        eventRender: function (eventObj, $el) {
+          $el.popover({
+            title: eventObj.title,
+            content: eventObj.description,
+            html: true,
+            trigger: 'hover',
+            placement: 'top',
+            container: 'body'
+          });
+        },
+        defaultDate: new Date(),
+        navLinks: true,
+        editable: false,
+        eventLimit: true,
+        events: events
+      });
+
+    }
+
+  </script>
+  <style>
+    body {
+      margin: 40px 10px;
+      padding: 0;
+      font-family: "Lucida Grande", Helvetica, Arial, Verdana, sans-serif;
+      font-size: 14px;
+    }
+
+    #calendar {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    #calendar a.fc-event {
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id='calendar'></div>
+
+</body>
+
+</html>
