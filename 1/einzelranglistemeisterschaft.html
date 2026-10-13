@@ -186,7 +186,7 @@
                 hgDataTable.style.display = 'none';
                 hgSearch.style.display = 'none';
 
-                var url = 'https://test.hgverwaltung.ch/api/1/live/meisterschaft-rangliste-einzelschlaeger/' + liga;
+                var url = 'https://hgverwaltung.ch/api/1/live/meisterschaft-rangliste-einzelschlaeger/' + liga;
                 fetch(url)
                     .then(function(response) {
                         return response.json();
