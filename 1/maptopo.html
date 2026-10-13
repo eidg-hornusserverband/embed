@@ -20,40 +20,6 @@
 
 	<select id="ligaSelection">
 		<option value="alle">Alle</option>
-		<option value="nla">NLA</option>
-		<optgroup label="NLB">
-			<option value="nlb1">Gruppe 1</option>
-			<option value="nlb2">Gruppe 2</option>
-		</optgroup>
-		<optgroup label="1. Liga">
-			<option value="1l1">Gruppe 1</option>
-			<option value="1l2">Gruppe 2</option>
-			<option value="1l3">Gruppe 3</option>
-			<option value="1l4">Gruppe 4</option>
-		</optgroup>
-		<optgroup label="2. Liga">
-			<option value="2l1">Gruppe 1</option>
-			<option value="2l2">Gruppe 2</option>
-			<option value="2l3">Gruppe 3</option>
-			<option value="2l4">Gruppe 4</option>
-		</optgroup>
-		<optgroup label="3. Liga">
-			<option value="3l1">Gruppe 1</option>
-			<option value="3l2">Gruppe 2</option>
-			<option value="3l3">Gruppe 3</option>
-			<option value="3l4">Gruppe 4</option>
-		</optgroup>
-		<optgroup label="4. Liga">
-			<option value="4l1">Gruppe 1</option>
-			<option value="4l2">Gruppe 2</option>
-			<option value="4l3">Gruppe 3</option>
-			<option value="4l4">Gruppe 4</option>
-		</optgroup>
-		<optgroup label="5. Liga">
-			<option value="5l1">Gruppe 1</option>
-			<option value="5l2">Gruppe 2</option>
-			<option value="5l3">Gruppe 3</option>
-		</optgroup>
 	</select>
 	<input id="nameFilterInput" type="text" placeholder="Name" width="100">
 
@@ -64,6 +30,57 @@
 		var locations = [];
 		var index;
 		var markerGroup;
+		// API-Liga/Gruppe (z.B. "A"/1, "B"/2, "3"/4) -> Code der Locations-API (nla, nlb2, 3l4)
+		function ligaCode(liga, gruppe) {
+			liga = String(liga).toUpperCase();
+			if (liga === 'A') {
+				return 'nla';
+			}
+			if (liga === 'B') {
+				return 'nlb' + gruppe;
+			}
+			return liga + 'l' + gruppe;
+		}
+
+		function ligaLabel(liga) {
+			liga = String(liga).toUpperCase();
+			return liga === 'A' || liga === 'B' ? 'NL' + liga : liga + '. Liga';
+		}
+
+		function loadLigen() {
+			var select = document.getElementById('ligaSelection');
+			return fetch('https://hgverwaltung.ch/api/1/live/meisterschaft/liga')
+				.then(function (response) {
+					return response.json();
+				}).then(function (data) {
+					var groups = {};
+					var order = [];
+					data.forEach(function (item) {
+						if (!groups[item.liga]) {
+							groups[item.liga] = [];
+							order.push(item.liga);
+						}
+						groups[item.liga].push(item.gruppe);
+					});
+					order.forEach(function (liga) {
+						var gruppen = groups[liga];
+						var parent = select;
+						if (gruppen.length > 1) {
+							parent = document.createElement('optgroup');
+							parent.label = ligaLabel(liga);
+							select.appendChild(parent);
+						}
+						gruppen.forEach(function (gruppe) {
+							var option = document.createElement('option');
+							option.value = ligaCode(liga, gruppe);
+							option.textContent = gruppen.length > 1 ? 'Gruppe ' + gruppe : ligaLabel(liga);
+							parent.appendChild(option);
+						});
+					});
+				}).catch(function (error) {
+					console.error('Fehler beim Laden der Ligen:', error);
+				});
+		}
 		function initialize() {
 			map = new L.Map('mapid', {
 			crs: L.CRS.EPSG3857,
@@ -74,6 +91,8 @@
 			var tilelayer = new L.tileLayer(url);
 			map.addLayer(tilelayer);
 			map.setView(L.latLng(46.938261,8.2765473), 9);
+
+			loadLigen();
 
 			var ligaSelection = document.getElementById('ligaSelection');
 			ligaSelection.addEventListener('change', onLigaChange);
